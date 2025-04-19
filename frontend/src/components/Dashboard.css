@@ -1,0 +1,165 @@
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  background: #f7f8fa;
+}
+
+.dashboard {
+  padding: 20px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-bottom: 30px;
+}
+
+.logout-button {
+  padding: 10px 20px;
+  background: #ff4d4f;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.product-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-bottom: 30px;
+}
+
+.product-card img {
+  width: 150px;
+  height: 150px;
+  object-fit: contain;
+  margin-bottom: 15px;
+}
+
+.price {
+  color: #2d8bff;
+  font-weight: bold;
+  font-size: 1.2em;
+}
+
+form input {
+  width: 90%;
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+form button {
+  width: 90%;
+  padding: 12px;
+  background-color: #2d8bff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.order-toggle {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.order-toggle button {
+  padding: 10px 20px;
+  background: #333;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.order-history {
+  display: block; /* Display orders as block-level elements */
+  gap: 20px;
+}
+
+.order-card {
+  display: flex; /* Flexbox layout for horizontal alignment */
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  text-align: left;
+  margin-bottom: 20px;
+  align-items: center; /* Vertically align items in the center */
+}
+
+.order-card img {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  margin-right: 10px; /* Space between the image and the details */
+}
+
+.order-details {
+  display: flex;
+  flex-direction: column; /* Stack the details vertically */
+  justify-content: center; /* Center content in the right section */
+  gap: 1px; /* Add space between each detail */
+}
+
+.order-details h4 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.order-details p {
+  margin: 5px 0;
+  color: #555;
+}
+
+.order-details em {
+  font-style: italic;
+  color: #888;
+}
+
+
+
+.download-invoice-btn {
+  margin-top: 12px;
+  padding: 6px 12px;
+  background-color: #2b7cff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+  width: fit-content;
+  align-self: flex-end; /* Align the button to the start of the card */
+}
+
+.download-invoice-btn:hover {
+  background-color: #1f5edb;
+}
+
+.empty-message {
+  text-align: center;
+  color: gray;
+  font-style: italic;
+}
+
+.loader {
+  text-align: center;
+  font-size: 1.5em;
+  padding: 40px;
+}

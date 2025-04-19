@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  # Authentication MySQL Database
+  mysql-auth:
+    image: mysql:8.0
+    container_name: mysql-auth-container
+    environment:
+      MYSQL_DATABASE: authdb
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_USER: authuser
+      MYSQL_PASSWORD: authpass
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_auth_data:/var/lib/mysql
+    networks:
+      - app-network
+
+  # Redis for Authentication (JWT token handling)
+  redis-auth:
+    image: redis:7
+    container_name: redis-auth-container
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
+  # RabbitMQ for Messaging
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq-container
+    ports:
+      - "5672:5672"   # AMQP protocol
+      - "15672:15672" # Web UI
+    networks:
+      - app-network
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  # Payment MySQL Database (for storing payment transactions)
+  paymentdb:
+    image: mysql:8.0
+    container_name: mysql-paymentdb-container
+    environment:
+      MYSQL_DATABASE: paymentdb
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_USER: paymentuser
+      MYSQL_PASSWORD: paymentpass
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_payment_data:/var/lib/mysql
+    networks:
+      - app-network
+
+  # MongoDB for Order History (NoSQL)
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb-container
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - app-network
+
+volumes:
+  mysql_auth_data:
+  mysql_payment_data:
+  mongodb_data:
+
+networks:
+  app-network:
+    driver: bridge

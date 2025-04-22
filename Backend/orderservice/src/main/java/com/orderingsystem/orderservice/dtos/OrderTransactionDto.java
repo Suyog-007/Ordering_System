@@ -22,4 +22,5 @@ public class OrderTransactionDto {
     public void setTransaction(Transaction transaction) {
         this.transaction = transaction;
     }
+
 }

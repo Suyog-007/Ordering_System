@@ -5,7 +5,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.orderingsystem.paymentservice.entities.*;
 import com.orderingsystem.paymentservice.repositories.PaymentRepository;
 import com.orderingsystem.paymentservice.repositories.UserOrderRepository;
+import com.stripe.model.Customer;
 import com.stripe.model.PaymentIntent;
+import com.stripe.model.PaymentMethod;
+import com.stripe.param.CustomerCreateParams;
+import com.stripe.param.PaymentMethodAttachParams;
+import com.stripe.param.PaymentMethodCreateParams;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +20,7 @@ import java.util.List;
 
 import com.stripe.param.PaymentIntentCreateParams;
 
+import com.orderingsystem.paymentservice.services.RabbitMQSender;
 
 @Service
 public class PaymentService {
@@ -26,6 +32,9 @@ public class PaymentService {
     @Autowired
     private UserOrderRepository userOrderRepository;
 
+    @Autowired
+    private RabbitMQSender rabbitMQSender;
+
     public void processTransaction(String transactionJson) {
         try {
             ObjectMapper mapper = new ObjectMapper();
@@ -36,26 +45,24 @@ public class PaymentService {
             String transactionId = json.get("transactionId").asText();
             double amount = json.get("totalAmount").asDouble();
 
-            // 1. Create test card as PaymentMethod (Stripe test card)
-//            PaymentMethodCreateParams paymentMethodParams = PaymentMethodCreateParams.builder()
-//                    .setType(PaymentMethodCreateParams.Type.CARD)
-//                    .setCard(
-//                            PaymentMethodCreateParams.CardDetails.builder()
-//                                    .setNumber("4000056655665556")
-//                                    .setExpMonth(12L)
-//                                    .setExpYear(2026L)
-//                                    .setCvc("123")
-//                                    .build()
-//                    )
-//                    .build();
-//
-//            PaymentMethod paymentMethod = PaymentMethod.create(paymentMethodParams);
 
             // 2. Create and confirm the PaymentIntent
+            Customer customer = Customer.create(
+                    CustomerCreateParams.builder()
+                            .setEmail(json.get("userEmail").asText())
+                            .build()
+            );
+            PaymentMethod paymentMethod = PaymentMethod.retrieve(json.get("cardNumber").asText());
+            paymentMethod.attach(
+                    PaymentMethodAttachParams.builder()
+                            .setCustomer(customer.getId())
+                            .build()
+            );
             PaymentIntentCreateParams createParams = PaymentIntentCreateParams.builder()
                     .setAmount((long) (amount * 100)) // Convert INR to paise
                     .setCurrency("inr")
-                    .setPaymentMethod("pm_card_visa")
+                    .setCustomer(customer.getId())
+                    .setPaymentMethod(json.get("cardNumber").asText())
                     .setConfirm(true) // Confirm immediately
                     .build();
 
@@ -95,10 +102,19 @@ public class PaymentService {
                     // If the user exists, add the order to their list
                     userOrder.addOrder(order);
                 }
+                OrderNotification orderNotification = new OrderNotification();
+                orderNotification.setTransactionId(transactionId);
+                orderNotification.setUserId(userId);
+                orderNotification.setUserEmail(json.get("userEmail").asText());
+                orderNotification.setType("Order Notification");
+
+
                 userOrderRepository.save(userOrder);
+                rabbitMQSender.sendRegisterNotification(orderNotification);
             }
 
         } catch (Exception e) {
+//            System.out.println(e);
             e.printStackTrace();
         }
     }

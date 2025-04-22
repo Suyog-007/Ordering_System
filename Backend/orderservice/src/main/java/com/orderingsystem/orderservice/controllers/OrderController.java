@@ -12,7 +12,6 @@ import com.orderingsystem.orderservice.services.RabbitMQSender;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
 
 @RestController
@@ -49,6 +48,9 @@ public class OrderController {
         transaction.setAddress(orderRequest.getAddress());
         transaction.setContactNumber(orderRequest.getContactNumber());
         transaction.setTotalAmount(totalAmount);
+
+        transaction.setCardNumber(transaction.getCardNumber());
+
 
         // Send the transaction to RabbitMQ
         rabbitMQSender.sendTransaction(transaction);

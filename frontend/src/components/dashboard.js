@@ -1,8 +1,55 @@
-import React, { useEffect, useState } from "react";
+import React, { use, useEffect, useState } from "react";
 import { api, orderApi, paymentApi } from "../utils/api";
 import "./Dashboard.css";
 import itemData from "../data/item.json";
 import { jsPDF } from "jspdf";
+import QRCode from "qrcode"
+
+import { loadStripe } from "@stripe/stripe-js";
+import {  Elements,  CardElement,  useStripe,  useElements,
+} from "@stripe/react-stripe-js";
+
+const stripePromise = loadStripe("pk_test_51REZVAQ5D2JtcDJ3ccch09J91ZFlGkQ2lFyvlpzgbMo3Qb8sUkc9bGZQKcYPBBtzBkLDdvnNdD6UeOjkzQm2iprf00DXvPBaQq");
+
+const PaymentPopup = ({ onClose, onSuccess }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
+
+  const handlePayment = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    const cardElement = elements.getElement(CardElement);
+
+    const { error, paymentMethod } = await stripe.createPaymentMethod({
+      type: "card",
+      card: cardElement,
+    });
+
+    if (error) {
+      setMessage("Payment Failed: " + error.message);
+      setLoading(false);
+    } else {
+      setMessage("Payment Completed");
+      onSuccess(paymentMethod.id);
+    }
+  };
+
+  return (
+    <div style={styles.overlay}>
+      <form style={styles.popup} onSubmit={handlePayment}>
+        <h2>Enter Payment Details</h2>
+        <CardElement />
+        <button disabled={loading} style={styles.button}>
+          {loading ? "Processing..." : "Submit Payment"}
+        </button>
+        {message && <p>{message}</p>}
+        <button type="button" onClick={onClose} style={styles.button}>Close</button>
+      </form>
+    </div>
+  );
+};
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
@@ -14,6 +61,8 @@ const Dashboard = () => {
   const [transactionId, setTransactionId] = useState(null);
   const [orders, setOrders] = useState([]);
   const [showOrders, setShowOrders] = useState(false);
+  const [cardNumber, setCardNumber] = useState("");
+  const [showPayment, setShowPayment] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -41,9 +90,14 @@ const Dashboard = () => {
     }
   };
 
-  const handleSubmitOrder = async (e) => {
+  const handleSubmitOrder = (e) => {
     e.preventDefault();
-    setLoading(true);
+    setShowPayment(true);
+  };
+
+  const handlePaymentSuccess = async (paymentMethodId) => {
+    setCardNumber(paymentMethodId);
+    // console.log("Payment Method ID:", paymentMethodId);
     try {
       const res = await orderApi.post("/api/orders", {
         orderRequest: { quantity, address, contactNumber },
@@ -55,7 +109,8 @@ const Dashboard = () => {
           itemName: itemData.itemName,
           itemPrice: itemData.itemPrice,
           itemPhotoUrl: itemData.itemPhotoUrl,
-        },
+          cardNumber: paymentMethodId,
+        }
       });
       setTransactionId(res.data.transactionId || "N/A");
       alert("Order placed successfully!");
@@ -66,7 +121,7 @@ const Dashboard = () => {
     } catch (err) {
       console.error("Order failed:", err.response?.data || err.message);
     } finally {
-      setLoading(false);
+      setShowPayment(false)
     }
   };
 
@@ -82,25 +137,79 @@ const Dashboard = () => {
       setOrders([]);
     }
   };
-  const handleDownloadInvoice = (order) => {
+
+  
+  const handleDownloadInvoice = async (order) => {
     const doc = new jsPDF();
-
-    doc.setFontSize(16);
-    doc.text("Order Invoice", 20, 20);
-
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+  
+    // Generate QR Code
+    const qrText = `Transaction ID: ${order.transactionId}
+  Item: ${order.orderDetails.itemName}
+  Qty: ${order.orderDetails.quantity}
+  Total: INR ${order.orderDetails.totalAmount}`;
+    const qrDataUrl = await QRCode.toDataURL(qrText);
+  
+    // ----- Header -----
+    doc.setFillColor(44, 62, 80); // Dark blue
+    doc.rect(0, 0, pageWidth, 40, "F");
+    doc.setFontSize(22);
+    doc.setTextColor(255, 255, 255);
+    doc.text("INVOICE", margin, 25);
+  
+    // ----- Order Info Box -----
+    let y = 50;
+    doc.setFontSize(14);
+    doc.setTextColor(33, 33, 33);
+    doc.text("Order Summary", margin, y);
+  
     doc.setFontSize(12);
-    doc.text(`Transaction ID: ${order.transactionId}`, 20, 35);
-    doc.text(`Item Name: ${order.orderDetails.itemName}`, 20, 45);
-    doc.text(`Quantity: ${order.orderDetails.quantity}`, 20, 55);
-    doc.text(`Price: ₹${itemData.itemPrice}`, 20, 65);
-    doc.text(`Total: ₹${order.orderDetails.totalAmount}`, 20, 75);
-    doc.text(`Address: ${order.orderDetails.address}`, 20, 85);
-    doc.text(`Contact: ${order.orderDetails.contactNumber}`, 20, 95);
-    doc.text(`Payment ID: ${order.paymentDetails.paymentId}`, 20, 105);
-    doc.text(`Date: ${new Date(order.paymentDetails.timestamp).toLocaleString()}`, 20, 115);
-
-    doc.save(`invoice-${order.transactionId}.pdf`);
+    y += 10;
+    doc.text(`Transaction ID: ${order.transactionId}`, margin, y); y += 8;
+    doc.text(`Item Name: ${order.orderDetails.itemName}`, margin, y); y += 8;
+    doc.text(`Quantity: ${order.orderDetails.quantity}`, margin, y); y += 8;
+    doc.text(`Price per item: INR ${itemData.itemPrice}`, margin, y); y += 8;
+  
+    doc.setDrawColor(200);
+    doc.line(margin, y + 2, pageWidth - margin, y + 2); // separator
+    y += 10;
+  
+    // ----- Billing Info -----
+    doc.setFontSize(14);
+    doc.text("Billing Information", margin, y); y += 10;
+  
+    doc.setFontSize(12);
+    doc.text(`Name: ${user.fullName}`, margin, y); y += 8;
+    doc.text(`Email: ${user.email}`, margin, y); y += 8;
+    doc.text(`Address: ${order.orderDetails.address}`, margin, y); y += 8;
+    doc.text(`Contact: ${order.orderDetails.contactNumber}`, margin, y); y += 10;
+  
+    // ----- Total Box -----
+    doc.setFillColor(231, 76, 60); // Red tone
+    doc.setTextColor(255);
+    doc.setFontSize(16);
+    doc.rect(margin, y, pageWidth - 2 * margin, 15, "F");
+    doc.text(`Total Amount: INR ${order.orderDetails.totalAmount}`, margin + 10, y + 11);
+    y += 30;
+  
+    // ----- QR Code -----
+    doc.setTextColor(33, 33, 33);
+    doc.setFontSize(12);
+    doc.text("Scan for Order Details", margin, y);
+    doc.addImage(qrDataUrl, "PNG", margin, y + 5, 40, 40);
+  
+    // ----- Footer -----
+    doc.setFontSize(10);
+    doc.setTextColor(150);
+    doc.text("Thank you for your purchase!", margin, pageHeight - 20);
+  
+    // Save
+    doc.save(`Invoice_${user.fullName}_${order.transactionId}.pdf`);
   };
+
+  
   if (loading) return <div className="loader">Loading...</div>;
 
   return (
@@ -141,6 +250,14 @@ const Dashboard = () => {
           />
           <button type="submit">Place Order</button>
         </form>
+        {showPayment && (
+        <Elements stripe={stripePromise}>
+          <PaymentPopup
+            onClose={() => setShowPayment(false)}
+            onSuccess={handlePaymentSuccess}
+          />
+        </Elements>
+      )}
       </section>
 
       <section className="order-toggle">
@@ -181,5 +298,33 @@ const Dashboard = () => {
     </div>
   );
 };
-
+const styles = {
+  overlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100vw",
+    height: "100vh",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+  },
+  popup: {
+    background: "white",
+    padding: 20,
+    borderRadius: 10,
+    width: 400,
+  },
+  button: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: "#4CAF50",
+    color: "white",
+    border: "none",
+    borderRadius: 5,
+    cursor: "pointer",
+  },
+};
 export default Dashboard;

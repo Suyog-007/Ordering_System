@@ -16,6 +16,15 @@ public class Transaction {
     private String address;
     private String contactNumber;
     private double totalAmount;
+    private String cardNumber;
+
+    public String getCardNumber() {
+        return cardNumber;
+    }
+
+    public void setCardNumber(String cardNumber) {
+        this.cardNumber = cardNumber;
+    }
 
     public void setTransactionId(String transactionId) {
         this.transactionId = transactionId;

@@ -2,13 +2,16 @@ package com.orderingsystem.authservice.controllers;
 
 import com.orderingsystem.authservice.dtos.LoginUserDto;
 import com.orderingsystem.authservice.dtos.RegisterUserDto;
+import com.orderingsystem.authservice.entities.RegisterNotification;
 import com.orderingsystem.authservice.entities.User;
 import com.orderingsystem.authservice.response.LoginResponse;
 import com.orderingsystem.authservice.services.AuthenticationService;
 import com.orderingsystem.authservice.services.JwtService;
+import com.orderingsystem.authservice.services.RabbitMQSender;
 import com.orderingsystem.authservice.services.TokenBlacklistService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.antlr.v4.runtime.Token;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,6 +30,9 @@ public class AuthenticationController {
 
     private  final TokenBlacklistService tokenBlacklistService;
 
+    @Autowired
+    private RabbitMQSender rabbitMQSender;
+
     public AuthenticationController(JwtService jwtService, AuthenticationService authenticationService, TokenBlacklistService tokenBlacklistService) {
         this.jwtService = jwtService;
         this.authenticationService = authenticationService;
@@ -36,6 +42,13 @@ public class AuthenticationController {
     @PostMapping("/signup")
     public ResponseEntity<User> register(@RequestBody RegisterUserDto registerUserDto) {
         User registeredUser = authenticationService.signup(registerUserDto);
+
+        RegisterNotification registerNotification = new RegisterNotification();
+
+        registerNotification.setEmail(registerUserDto.getEmail());
+        registerNotification.setFullName(registerUserDto.getFullName());
+        registerNotification.setType("Register Notification");
+        rabbitMQSender.sendRegisterNotification(registerNotification);
 
         return ResponseEntity.ok(registeredUser);
     }
